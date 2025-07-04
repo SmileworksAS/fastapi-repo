@@ -4,52 +4,94 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
 import openai
 import os
+import json
 import requests
 
+# OpenAI Client
+client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# Load system prompt
+with open("prompt.json", "r", encoding="utf-8") as f:
+    system_prompt = json.load(f).get("system", "")
+
+# Load knowledge
+with open("orbdent_knowledge.json", "r", encoding="utf-8") as f:
+    orbdent_knowledge = json.load(f)
+
+# Format knowledge for injection
+def format_knowledge(knowledge):
+    lines = []
+    lines.append(f"Info om Orbdent:\n\n{knowledge.get('about', '')}\n")
+
+    if "services" in knowledge:
+        lines.append("Tjenester vi tilbyr:\n" + "\n".join(f"- {s}" for s in knowledge["services"]))
+
+    if "faq" in knowledge:
+        lines.append("\nOfte stilte spørsmål:\n")
+        for item in knowledge["faq"]:
+            lines.append(f"Spørsmål: {item['question']}\nSvar: {item['answer']}\n")
+
+    if "contact" in knowledge:
+        contact = knowledge["contact"]
+        lines.append("\nKontaktinfo:\n")
+        lines.append(f"E-post: {contact.get('email')}")
+        lines.append(f"Nettsted: {contact.get('web')}")
+        lines.append(f"Organisasjonsnummer: {contact.get('orgnr')}")
+
+    return "\n".join(lines)
+
+# FastAPI
 app = FastAPI()
 
-# --- Middleware ---
+# CORS setup
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://branding2025.orbdent.com"],  # Update with allowed frontend domains in production
+    allow_origins=[
+        "https://branding2025.orbdent.com",
+        "https://www.branding2025.orbdent.com"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- OpenAI setup ---
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
-# --- OpenAI Chat Assistant (under /open-ai/stream) ---
-
+# Data model
 class ChatRequest(BaseModel):
     message: str
-    model: str = "gpt-4"
+    model: str = "gpt-4"  # Optional: "gpt-4" or "gpt-3.5-turbo"
 
+# Streaming endpoint with model switch
 @app.post("/open-ai/stream")
-async def ask_stream(req: ChatRequest):
-    def generate():
+async def stream_chat(req: ChatRequest):
+    user_input = req.message
+    model_name = req.model if req.model in ["gpt-4", "gpt-3.5-turbo"] else "gpt-4"
+    print(f"🔁 Using model: {model_name}")
+
+    def event_stream():
         try:
-            completion = openai.ChatCompletion.create(
-                model=req.model,
-                messages=[
-                    {"role": "system", "content": "Du er en hjelpsom og profesjonell AI-assistent for Orbdent, et selskap innen tannhelse og rekruttering."},
-                    {"role": "user", "content": req.message}
-                ],
+            response = client.chat.completions.create(
+                model=model_name,
                 stream=True,
-                temperature=0.7,
-                max_tokens=800,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": format_knowledge(orbdent_knowledge)},
+                    {"role": "user", "content": user_input}
+                ]
             )
-            for chunk in completion:
-                content = chunk['choices'][0]['delta'].get('content', '')
-                yield content
+
+            for chunk in response:
+                delta = chunk.choices[0].delta
+                yield delta.content or ""
+
         except Exception as e:
-            yield f"\n\n[Feil: {str(e)}]"
+            yield f"[Feil]: {str(e)}"
 
-    return StreamingResponse(generate(), media_type="text/plain")
+    return StreamingResponse(event_stream(), media_type="text/plain")
 
+# -------------------------------------------------------------------
+# ✅ Teamtailor: Available Jobs Endpoint
+# -------------------------------------------------------------------
 
-# --- Teamtailor Jobs Listing ---
 TEAMTAILOR_API_KEY = "vzQXfp3cJwmIuJ0X8iXjmY0hKOB3zqQQHBYAtRPZ"
 TEAMTAILOR_API_BASE = "https://api.teamtailor.com/v1"
 
@@ -86,8 +128,10 @@ def get_jobs_grouped_by_location():
 
     return {"locations": jobs_by_location}
 
+# -------------------------------------------------------------------
+# ✅ Teamtailor: CV Application Endpoint
+# -------------------------------------------------------------------
 
-# --- Teamtailor CV Application ---
 @app.post("/teamtailor/cv-application/")
 async def submit_cv_application(
     name: str = Form(...),
