@@ -1,0 +1,28 @@
+{
+  "about": "Orbdent er en norsk organisasjon som hjelper tannleger og tannklinikker med etablering, drift og bemanning. Vi tilbyr støtte for både nyoppstartede og etablerte klinikker.",
+  "services": [
+    "Rekruttering av tannleger og tannhelsesekretærer",
+    "Digital klinikkdrift og journalsystem",
+    "Rådgivning ved oppstart av tannklinikk",
+    "Webdesign og markedsføring for tannleger"
+  ],
+  "faq": [
+    {
+      "question": "Hva gjør Orbdent?",
+      "answer": "Vi hjelper tannklinikker med rekruttering, oppstart, drift og digitalisering."
+    },
+    {
+      "question": "Er Orbdent en klinikk?",
+      "answer": "Nei, Orbdent er en partner for tannleger og klinikker, ikke en klinikk selv."
+    },
+    {
+      "question": "Hvordan kan jeg søke jobb via Orbdent?",
+      "answer": "Du kan sende inn søknaden din via vår nettside eller kontakte oss direkte."
+    }
+  ],
+  "contact": {
+    "email": "post@orbdent.com",
+    "web": "https://orbdent.com/no/",
+    "orgnr": "925 694 623"
+  }
+}
