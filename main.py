@@ -11,7 +11,7 @@ app = FastAPI()
 # --- Middleware ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://branding2025.orbdent.com"],  # Restrict in production
+    allow_origins=["https://branding2025.orbdent.com"],  # Update with allowed frontend domains in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -20,13 +20,13 @@ app.add_middleware(
 # --- OpenAI setup ---
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# --- Chat assistant endpoint (/stream) ---
+# --- OpenAI Chat Assistant (under /open-ai/stream) ---
 
 class ChatRequest(BaseModel):
     message: str
     model: str = "gpt-4"
 
-@app.post("/stream")
+@app.post("/open-ai/stream")
 async def ask_stream(req: ChatRequest):
     def generate():
         try:
@@ -48,8 +48,8 @@ async def ask_stream(req: ChatRequest):
 
     return StreamingResponse(generate(), media_type="text/plain")
 
-# --- Teamtailor job listing (/teamtailor/available-jobs) ---
 
+# --- Teamtailor Jobs Listing ---
 TEAMTAILOR_API_KEY = "vzQXfp3cJwmIuJ0X8iXjmY0hKOB3zqQQHBYAtRPZ"
 TEAMTAILOR_API_BASE = "https://api.teamtailor.com/v1"
 
@@ -86,8 +86,8 @@ def get_jobs_grouped_by_location():
 
     return {"locations": jobs_by_location}
 
-# --- Teamtailor CV application form (/teamtailor/cv-application) ---
 
+# --- Teamtailor CV Application ---
 @app.post("/teamtailor/cv-application/")
 async def submit_cv_application(
     name: str = Form(...),
@@ -96,7 +96,6 @@ async def submit_cv_application(
     message: str = Form(None),
     cv: UploadFile = File(None),
 ):
-    # Logging / placeholder for now
     return JSONResponse({
         "status": "received",
         "name": name,
