@@ -7,18 +7,17 @@ import os
 import json
 import requests
 
-# OpenAI Client
-client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# ✅ OpenAI setup for SDK < 1.0
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Load system prompt
+# ✅ Load system prompt
 with open("prompt.json", "r", encoding="utf-8") as f:
     system_prompt = json.load(f).get("system", "")
 
-# Load knowledge
+# ✅ Load Orbdent knowledge
 with open("orbdent_knowledge.json", "r", encoding="utf-8") as f:
     orbdent_knowledge = json.load(f)
 
-# Format knowledge for injection
 def format_knowledge(knowledge):
     lines = []
     lines.append(f"Info om Orbdent:\n\n{knowledge.get('about', '')}\n")
@@ -40,10 +39,10 @@ def format_knowledge(knowledge):
 
     return "\n".join(lines)
 
-# FastAPI
+# ✅ FastAPI instance
 app = FastAPI()
 
-# CORS setup
+# ✅ CORS settings
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -55,12 +54,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Data model
+# ✅ Chat model
 class ChatRequest(BaseModel):
     message: str
-    model: str = "gpt-4"  # Optional: "gpt-4" or "gpt-3.5-turbo"
+    model: str = "gpt-4"
 
-# Streaming endpoint with model switch
+# ✅ OpenAI streaming endpoint
 @app.post("/open-ai/stream")
 async def stream_chat(req: ChatRequest):
     user_input = req.message
@@ -69,7 +68,7 @@ async def stream_chat(req: ChatRequest):
 
     def event_stream():
         try:
-            response = client.chat.completions.create(
+            response = openai.ChatCompletion.create(
                 model=model_name,
                 stream=True,
                 messages=[
@@ -78,20 +77,16 @@ async def stream_chat(req: ChatRequest):
                     {"role": "user", "content": user_input}
                 ]
             )
-
             for chunk in response:
-                delta = chunk.choices[0].delta
-                yield delta.content or ""
-
+                delta = chunk['choices'][0]['delta']
+                yield delta.get("content", "")
         except Exception as e:
             yield f"[Feil]: {str(e)}"
 
     return StreamingResponse(event_stream(), media_type="text/plain")
 
-# -------------------------------------------------------------------
-# ✅ Teamtailor: Available Jobs Endpoint
-# -------------------------------------------------------------------
 
+# ✅ Teamtailor: Available Jobs Endpoint
 TEAMTAILOR_API_KEY = "vzQXfp3cJwmIuJ0X8iXjmY0hKOB3zqQQHBYAtRPZ"
 TEAMTAILOR_API_BASE = "https://api.teamtailor.com/v1"
 
@@ -128,10 +123,7 @@ def get_jobs_grouped_by_location():
 
     return {"locations": jobs_by_location}
 
-# -------------------------------------------------------------------
 # ✅ Teamtailor: CV Application Endpoint
-# -------------------------------------------------------------------
-
 @app.post("/teamtailor/cv-application/")
 async def submit_cv_application(
     name: str = Form(...),
