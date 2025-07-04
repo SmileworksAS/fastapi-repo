@@ -6,18 +6,18 @@ import openai
 import os
 import json
 
-# OpenAI Client (new SDK style, for openai>=1.0.0)
+# OpenAI Client
 client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Load system prompt
 with open("prompt.json", "r", encoding="utf-8") as f:
     system_prompt = json.load(f).get("system", "")
 
-# Load knowledge base
+# Load knowledge
 with open("orbdent_knowledge.json", "r", encoding="utf-8") as f:
     orbdent_knowledge = json.load(f)
 
-# Format knowledge into a readable plain-text block
+# Format knowledge for injection
 def format_knowledge(knowledge):
     lines = []
     lines.append(f"Info om Orbdent:\n\n{knowledge.get('about', '')}\n")
@@ -39,14 +39,14 @@ def format_knowledge(knowledge):
 
     return "\n".join(lines)
 
-# FastAPI app
+# FastAPI
 app = FastAPI()
 
-# Allow frontend from WordPress domain
+# CORS setup
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://branding2025.orbdent.com",  # your frontend domain
+        "https://branding2025.orbdent.com",
         "https://www.branding2025.orbdent.com"
     ],
     allow_credentials=True,
@@ -57,24 +57,32 @@ app.add_middleware(
 # Data model
 class ChatRequest(BaseModel):
     message: str
+    model: str = "gpt-4"  # Optional: "gpt-4" or "gpt-3.5-turbo"
 
-# Streaming AI endpoint
+# Streaming endpoint with model switch
 @app.post("/stream")
 async def stream_chat(req: ChatRequest):
     user_input = req.message
+    model_name = req.model if req.model in ["gpt-4", "gpt-3.5-turbo"] else "gpt-4"
+    print(f"🔁 Using model: {model_name}")
 
     def event_stream():
-        response = client.chat.completions.create(
-            model="gpt-4",
-            stream=True,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": format_knowledge(orbdent_knowledge)},
-                {"role": "user", "content": user_input}
-            ]
-        )
-        for chunk in response:
-            delta = chunk.choices[0].delta
-            yield delta.content or ""
+        try:
+            response = client.chat.completions.create(
+                model=model_name,
+                stream=True,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": format_knowledge(orbdent_knowledge)},
+                    {"role": "user", "content": user_input}
+                ]
+            )
+
+            for chunk in response:
+                delta = chunk.choices[0].delta
+                yield delta.content or ""
+
+        except Exception as e:
+            yield f"[Feil]: {str(e)}"
 
     return StreamingResponse(event_stream(), media_type="text/plain")
