@@ -1,15 +1,21 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-import os
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 import openai
+import os
+import json
 
-# Init OpenAI client (new API structure)
+# Load OpenAI client
 client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# Load prompt from JSON file
+with open("prompt.json", "r", encoding="utf-8") as f:
+    system_prompt = json.load(f).get("system", "")
 
 app = FastAPI()
 
-# CORS
+# CORS for your WordPress domain
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -21,19 +27,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Request model
 class ChatRequest(BaseModel):
     message: str
 
-@app.post("/ask")
-async def ask(req: ChatRequest):
-    try:
+@app.post("/stream")
+async def stream_chat(req: ChatRequest):
+    user_input = req.message
+
+    def event_stream():
         response = client.chat.completions.create(
             model="gpt-4",
+            stream=True,
             messages=[
-                {"role": "user", "content": req.message}
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_input},
             ]
         )
-        return {"reply": response.choices[0].message.content}
-    except Exception as e:
-        return {"error": str(e)}
+        for chunk in response:
+            delta = chunk.choices[0].delta
+            yield delta.content or ""
+
+    return StreamingResponse(event_stream(), media_type="text/plain")
