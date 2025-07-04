@@ -1,16 +1,15 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-import openai
 import os
+import openai
 
-# Load API key from environment
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Init OpenAI client (new API structure)
+client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Initialize FastAPI app
 app = FastAPI()
 
-# Enable CORS for your WordPress frontend domain
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -22,19 +21,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Define expected request format
+# Request model
 class ChatRequest(BaseModel):
     message: str
 
-# POST endpoint: /ask
 @app.post("/ask")
 async def ask(req: ChatRequest):
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4",
-            messages=[{"role": "user", "content": req.message}],
+            messages=[
+                {"role": "user", "content": req.message}
+            ]
         )
-        return {"reply": response.choices[0].message["content"]}
+        return {"reply": response.choices[0].message.content}
     except Exception as e:
-        # Catch and return error as JSON
         return {"error": str(e)}
