@@ -12,7 +12,7 @@ app = FastAPI()
 # Middleware (CORS)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Replace with your frontend domain in production
+    allow_origins=["https://branding2025.orbdent.com"],  # Replace with your frontend domain in production
     allow_methods=["*"],
     allow_headers=["*"],
 )
