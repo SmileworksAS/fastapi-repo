@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Form, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
@@ -6,21 +6,21 @@ import openai
 import os
 import requests
 
-# Init app
 app = FastAPI()
 
-# Middleware (CORS)
+# --- Middleware ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://branding2025.orbdent.com"],  # Replace with your frontend domain in production
+    allow_origins=["*"],  # Restrict in production
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Set OpenAI API key
+# --- OpenAI setup ---
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# --- /ask endpoint (chat assistant) ---
+# --- Chat assistant endpoint (/stream) ---
 
 class ChatRequest(BaseModel):
     message: str
@@ -48,8 +48,7 @@ async def ask_stream(req: ChatRequest):
 
     return StreamingResponse(generate(), media_type="text/plain")
 
-
-# --- /teamtailor/available-jobs endpoint ---
+# --- Teamtailor job listing (/teamtailor/available-jobs) ---
 
 TEAMTAILOR_API_KEY = "vzQXfp3cJwmIuJ0X8iXjmY0hKOB3zqQQHBYAtRPZ"
 TEAMTAILOR_API_BASE = "https://api.teamtailor.com/v1"
@@ -86,3 +85,23 @@ def get_jobs_grouped_by_location():
         })
 
     return {"locations": jobs_by_location}
+
+# --- Teamtailor CV application form (/teamtailor/cv-application) ---
+
+@app.post("/teamtailor/cv-application/")
+async def submit_cv_application(
+    name: str = Form(...),
+    email: str = Form(...),
+    phone: str = Form(None),
+    message: str = Form(None),
+    cv: UploadFile = File(None),
+):
+    # Logging / placeholder for now
+    return JSONResponse({
+        "status": "received",
+        "name": name,
+        "email": email,
+        "phone": phone,
+        "message": message,
+        "cv_filename": cv.filename if cv else None
+    })
