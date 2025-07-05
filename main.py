@@ -95,32 +95,61 @@ def get_jobs_grouped_by_location():
     headers = {
         "Authorization": f"Token token={TEAMTAILOR_API_KEY}",
         "Accept": "application/vnd.api+json",
-        "X-Api-Version": "20240404", # Added X-Api-Version header
-        "Content-Type": "application/vnd.api+json" # Added Content-Type header
+        "X-Api-Version": "20240404",
+        "Content-Type": "application/vnd.api+json"
     }
 
-    res = requests.get(f"{TEAMTAILOR_API_BASE}/jobs", headers=headers)
+    # IMPORTANT: Add ?include=locations to get location data
+    res = requests.get(f"{TEAMTAILOR_API_BASE}/jobs?include=locations", headers=headers)
     if res.status_code != 200:
-        return {"error": "Teamtailor API error", "status": res.status_code, "detail": res.text} # Added res.text for more detail
+        print(f"Teamtailor API error: {res.status_code} - {res.text}")
+        return {"error": "Teamtailor API error", "status": res.status_code, "detail": res.text}
 
     data = res.json()
     jobs_by_location = {}
 
+    # Create a dictionary for quick lookup of included resources (like locations)
+    included_resources = {}
+    if "included" in data:
+        for item in data["included"]:
+            if item.get("type") == "locations": # Make sure to handle 'locations' (plural) as per your JSON
+                included_resources[item["id"]] = item["attributes"]
+
     for job in data.get("data", []):
         attrs = job.get("attributes", {})
         title = attrs.get("title")
-        # Ensure location is extracted correctly; it might be nested under 'location' attribute
-        # and then have a 'city' key, or be directly 'location'. Check Teamtailor's exact response structure.
-        location = attrs.get("location", {}).get("city", "Uten lokasjon") 
-        url = attrs.get("career-site-url")
+        url = job.get("links", {}).get("careersite-job-url") # Use careersite-job-url from 'links'
 
         if not title or not url:
             continue
 
-        if location not in jobs_by_location:
-            jobs_by_location[location] = []
+        # Get location relationship data
+        # Check 'relationships.locations.data' for multiple locations, or 'relationships.location.data' for single
+        job_locations = job.get("relationships", {}).get("locations", {}).get("data", [])
+        if not job_locations: # Fallback to single 'location' if 'locations' is empty or not present
+             single_location_data = job.get("relationships", {}).get("location", {}).get("data")
+             if single_location_data:
+                 job_locations = [single_location_data]
 
-        jobs_by_location[location].append({
+        display_location = "Uten lokasjon"
+
+        if job_locations:
+            # For simplicity, let's take the first location if multiple are present
+            # You might want to combine them or handle them differently
+            first_location_id = job_locations[0]["id"]
+            location_info = included_resources.get(first_location_id)
+            if location_info:
+                display_location = location_info.get("city", location_info.get("name", "Uten lokasjon"))
+            else:
+                print(f"Warning: Location ID {first_location_id} not found in included resources.")
+        else:
+            print(f"Job '{title}' has no associated location relationship.")
+
+
+        if display_location not in jobs_by_location:
+            jobs_by_location[display_location] = []
+
+        jobs_by_location[display_location].append({
             "title": title,
             "url": url
         })
