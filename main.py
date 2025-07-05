@@ -94,12 +94,14 @@ TEAMTAILOR_API_BASE = "https://api.teamtailor.com/v1"
 def get_jobs_grouped_by_location():
     headers = {
         "Authorization": f"Token token={TEAMTAILOR_API_KEY}",
-        "Accept": "application/vnd.api+json"
+        "Accept": "application/vnd.api+json",
+        "X-Api-Version": "20240404", # Added X-Api-Version header
+        "Content-Type": "application/vnd.api+json" # Added Content-Type header
     }
 
     res = requests.get(f"{TEAMTAILOR_API_BASE}/jobs", headers=headers)
     if res.status_code != 200:
-        return {"error": "Teamtailor API error", "status": res.status_code}
+        return {"error": "Teamtailor API error", "status": res.status_code, "detail": res.text} # Added res.text for more detail
 
     data = res.json()
     jobs_by_location = {}
@@ -107,7 +109,9 @@ def get_jobs_grouped_by_location():
     for job in data.get("data", []):
         attrs = job.get("attributes", {})
         title = attrs.get("title")
-        location = attrs.get("location", {}).get("city", "Uten lokasjon")
+        # Ensure location is extracted correctly; it might be nested under 'location' attribute
+        # and then have a 'city' key, or be directly 'location'. Check Teamtailor's exact response structure.
+        location = attrs.get("location", {}).get("city", "Uten lokasjon") 
         url = attrs.get("career-site-url")
 
         if not title or not url:
