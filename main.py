@@ -6,7 +6,7 @@ import openai
 import os
 import json
 import requests
-import time # Import time for caching
+import time
 
 # ✅ OpenAI setup for SDK < 1.0
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -92,18 +92,18 @@ TEAMTAILOR_API_KEY = "vzQXfp3cJwmIuJ0X8iXjmY0hKOB3zqQQHBYAtRPZ"
 TEAMTAILOR_API_BASE = "https://api.teamtailor.com/v1"
 
 # --- Caching Mechanism ---
-# Simple in-memory cache
-job_cache = {"data": None, "timestamp": 0}
+# Simple in-memory cache for the final aggregated job data
+job_data_cache = {"data": None, "timestamp": 0}
 CACHE_DURATION = 10 * 60 * 60  # 10 hours in seconds
 
 @app.get("/teamtailor/available-jobs")
-def get_jobs_grouped_by_department(): # Changed function name to reflect new grouping
+def get_jobs_grouped_by_location(): # Function name reverted to original
     current_time = time.time()
 
     # Check if cache is valid and relatively fresh
-    if job_cache["data"] and (current_time - job_cache["timestamp"] < CACHE_DURATION):
+    if job_data_cache["data"] and (current_time - job_data_cache["timestamp"] < CACHE_DURATION):
         print("💡 Returning jobs from cache.")
-        return job_cache["data"]
+        return job_data_cache["data"]
 
     headers = {
         "Authorization": f"Token token={TEAMTAILOR_API_KEY}",
@@ -112,73 +112,83 @@ def get_jobs_grouped_by_department(): # Changed function name to reflect new gro
         "Content-Type": "application/vnd.api+json"
     }
 
-    # IMPORTANT: Include 'department' instead of 'locations'
-    # Also added page[size]=100 to attempt to get more results if available,
-    # as default might be less than total jobs.
-    # For full pagination, you'd need a loop.
-    res = requests.get(f"{TEAMTAILOR_API_BASE}/jobs?include=department&page[size]=100", headers=headers)
-    if res.status_code != 200:
-        print(f"Teamtailor API error: {res.status_code} - {res.text}")
+    # Step 1: Fetch all available locations
+    locations_response = requests.get(f"{TEAMTAILOR_API_BASE}/locations?page[size]=100", headers=headers)
+    if locations_response.status_code != 200:
+        print(f"Teamtailor API error fetching locations: {locations_response.status_code} - {locations_response.text}")
         return JSONResponse(
-            status_code=res.status_code,
-            content={"error": "Teamtailor API error", "status": res.status_code, "detail": res.text}
+            status_code=locations_response.status_code,
+            content={"error": "Teamtailor API error fetching locations", "status": locations_response.status_code, "detail": locations_response.text}
         )
+    
+    locations_data = locations_response.json()
+    locations_map = {}
+    if "data" in locations_data:
+        for loc in locations_data["data"]:
+            if loc.get("type") == "locations":
+                loc_id = loc.get("id")
+                loc_name = loc.get("attributes", {}).get("city") or loc.get("attributes", {}).get("name")
+                if loc_id and loc_name:
+                    locations_map[loc_id] = loc_name
+    
+    jobs_by_location = {}
 
-    data = res.json()
-    jobs_by_category = {} # Changed variable name to be more generic
-
-    # Create a dictionary for quick lookup of included resources (like departments)
-    included_resources = {}
-    if "included" in data:
-        for item in data["included"]:
-            if item.get("type") == "departments": # Teamtailor uses 'departments' plural for included resources
-                included_resources[item["id"]] = item["attributes"]
-
-    for job in data.get("data", []):
-        attrs = job.get("attributes", {})
-        title = attrs.get("title")
-        body = attrs.get("body", "")
-        url = job.get("links", {}).get("careersite-job-url")
-
-        # Only process jobs that are published and have a title/url
-        if not title or not url or attrs.get("human-status") != "published":
+    # Step 2: Fetch jobs for each location
+    # Note: If a job has multiple locations, it will appear under each of them.
+    # If a job has no location, it won't be fetched by this loop.
+    for loc_id, loc_name in locations_map.items():
+        jobs_response = requests.get(
+            f"{TEAMTAILOR_API_BASE}/jobs?filter%5Blocations%5D={loc_id}&include=department&page[size]=100",
+            headers=headers
+        )
+        if jobs_response.status_code != 200:
+            print(f"Teamtailor API error fetching jobs for location {loc_name} ({loc_id}): {jobs_response.status_code} - {jobs_response.text}")
+            # Continue to next location even if one fails
             continue
 
-        # Get department relationship data
-        # Note: relationships.department.data refers to the singular department associated with the job
-        department_data = job.get("relationships", {}).get("department", {}).get("data")
+        jobs_data = jobs_response.json()
         
-        display_category = "Uten kategori" # Default for jobs without a department
+        # Prepare included departments for lookup within this jobs batch
+        included_departments = {}
+        if "included" in jobs_data:
+            for item in jobs_data["included"]:
+                if item.get("type") == "departments":
+                    included_departments[item["id"]] = item["attributes"]
 
-        if department_data and department_data.get("id") and department_data.get("type") == "departments":
-            department_id = department_data["id"]
-            department_info = included_resources.get(department_id)
-            if department_info:
-                display_category = department_info.get("name", "Uten kategori")
-            else:
-                print(f"Warning: Department ID {department_id} not found in included resources for job '{title}'.")
-        else:
-            print(f"Job '{title}' has no associated department relationship or invalid department data.")
+        for job in jobs_data.get("data", []):
+            attrs = job.get("attributes", {})
+            title = attrs.get("title")
+            body = attrs.get("body", "")
+            url = job.get("links", {}).get("careersite-job-url")
 
-        if display_category not in jobs_by_category:
-            jobs_by_category[display_category] = []
+            # Only process jobs that are published and have a title/url
+            if not title or not url or attrs.get("human-status") != "published":
+                continue
 
-        jobs_by_category[display_category].append({
-            "title": title,
-            "url": url,
-            "body": body
-        })
+            # Add job to the list for this specific location
+            if loc_name not in jobs_by_location:
+                jobs_by_location[loc_name] = []
 
-    result = {"categories": jobs_by_category} # Changed key to 'categories'
+            jobs_by_location[loc_name].append({
+                "title": title,
+                "url": url,
+                "body": body
+            })
+    
+    # After fetching all jobs per location, we might want to also fetch jobs that have no location
+    # Or rely solely on the per-location filtering.
+    # For this request, we'll stick to filtering by provided locations.
+    
+    final_result = {"locations": jobs_by_location}
     
     # Cache the result
-    job_cache["data"] = result
-    job_cache["timestamp"] = current_time
-    print("✅ Jobs fetched and cached.")
+    job_data_cache["data"] = final_result
+    job_data_cache["timestamp"] = current_time
+    print("✅ Jobs fetched and cached by location.")
 
-    return result
+    return final_result
 
-# ✅ Teamtailor: CV Application Endpoint
+# ✅ Teamtailor: CV Application Endpoint (unchanged)
 @app.post("/teamtailor/cv-application/")
 async def submit_cv_application(
     name: str = Form(...),
@@ -187,10 +197,6 @@ async def submit_cv_application(
     message: str = Form(None),
     cv: UploadFile = File(None),
 ):
-    # This endpoint is unchanged, but ensuring it's here for completeness
-    # In a real application, you'd likely integrate with Teamtailor's application API
-    # using requests.post to submit the data and CV file.
-    # This is currently just returning the received data.
     return JSONResponse({
         "status": "received",
         "name": name,
