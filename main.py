@@ -92,18 +92,19 @@ TEAMTAILOR_API_KEY = "vzQXfp3cJwmIuJ0X8iXjmY0hKOB3zqQQHBYAtRPZ"
 TEAMTAILOR_API_BASE = "https://api.teamtailor.com/v1"
 
 # --- Caching Mechanism ---
-# Simple in-memory cache for the final aggregated job data
 job_data_cache = {"data": None, "timestamp": 0}
 CACHE_DURATION = 10 * 60 * 60  # 10 hours in seconds
 
 @app.get("/teamtailor/available-jobs")
-def get_jobs_grouped_by_location(): # Function name reverted to original
+def get_jobs_grouped_by_location():
     current_time = time.time()
 
     # Check if cache is valid and relatively fresh
     if job_data_cache["data"] and (current_time - job_data_cache["timestamp"] < CACHE_DURATION):
         print("💡 Returning jobs from cache.")
         return job_data_cache["data"]
+
+    print("🔄 Cache miss or expired. Fetching fresh data from Teamtailor...")
 
     headers = {
         "Authorization": f"Token token={TEAMTAILOR_API_KEY}",
@@ -113,15 +114,19 @@ def get_jobs_grouped_by_location(): # Function name reverted to original
     }
 
     # Step 1: Fetch all available locations
+    print(f"Fetching locations from: {TEAMTAILOR_API_BASE}/locations?page[size]=100")
     locations_response = requests.get(f"{TEAMTAILOR_API_BASE}/locations?page[size]=100", headers=headers)
+    
     if locations_response.status_code != 200:
-        print(f"Teamtailor API error fetching locations: {locations_response.status_code} - {locations_response.text}")
+        print(f"ERROR: Teamtailor API error fetching locations. Status: {locations_response.status_code}, Response: {locations_response.text}")
         return JSONResponse(
             status_code=locations_response.status_code,
             content={"error": "Teamtailor API error fetching locations", "status": locations_response.status_code, "detail": locations_response.text}
         )
     
     locations_data = locations_response.json()
+    print(f"Successfully fetched locations. Found {len(locations_data.get('data', []))} raw locations.")
+
     locations_map = {}
     if "data" in locations_data:
         for loc in locations_data["data"]:
@@ -131,23 +136,37 @@ def get_jobs_grouped_by_location(): # Function name reverted to original
                 if loc_id and loc_name:
                     locations_map[loc_id] = loc_name
     
+    if not locations_map:
+        print("WARN: No locations with valid IDs and names found after processing Teamtailor locations response.")
+        # If no locations, there will be no jobs to fetch by location, so return early
+        final_result_empty = {"locations": {}}
+        job_data_cache["data"] = final_result_empty
+        job_data_cache["timestamp"] = current_time
+        return final_result_empty
+
+    print(f"Processed {len(locations_map)} unique locations: {locations_map}")
+    
     jobs_by_location = {}
 
     # Step 2: Fetch jobs for each location
-    # Note: If a job has multiple locations, it will appear under each of them.
-    # If a job has no location, it won't be fetched by this loop.
+    total_jobs_fetched = 0
     for loc_id, loc_name in locations_map.items():
-        jobs_response = requests.get(
-            f"{TEAMTAILOR_API_BASE}/jobs?filter%5Blocations%5D={loc_id}&include=department&page[size]=100",
-            headers=headers
-        )
+        jobs_url = f"{TEAMTAILOR_API_BASE}/jobs?filter%5Blocations%5D={loc_id}&include=department&page[size]=100"
+        print(f"Fetching jobs for location '{loc_name}' (ID: {loc_id}) from: {jobs_url}")
+        jobs_response = requests.get(jobs_url, headers=headers)
+        
         if jobs_response.status_code != 200:
-            print(f"Teamtailor API error fetching jobs for location {loc_name} ({loc_id}): {jobs_response.status_code} - {jobs_response.text}")
+            print(f"ERROR: Teamtailor API error fetching jobs for '{loc_name}' ({loc_id}). Status: {jobs_response.status_code}, Response: {jobs_response.text}")
             # Continue to next location even if one fails
             continue
 
         jobs_data = jobs_response.json()
-        
+        raw_jobs_count = len(jobs_data.get("data", []))
+        print(f"  Found {raw_jobs_count} raw jobs for '{loc_name}'.")
+
+        if raw_jobs_count == 0:
+            continue # No jobs for this location, move to the next
+
         # Prepare included departments for lookup within this jobs batch
         included_departments = {}
         if "included" in jobs_data:
@@ -160,12 +179,13 @@ def get_jobs_grouped_by_location(): # Function name reverted to original
             title = attrs.get("title")
             body = attrs.get("body", "")
             url = job.get("links", {}).get("careersite-job-url")
+            human_status = attrs.get("human-status")
 
             # Only process jobs that are published and have a title/url
-            if not title or not url or attrs.get("human-status") != "published":
+            if not title or not url or human_status != "published":
+                print(f"    Skipping job '{title}' (ID: {job.get('id')}) due to missing title/URL or status '{human_status}'.")
                 continue
 
-            # Add job to the list for this specific location
             if loc_name not in jobs_by_location:
                 jobs_by_location[loc_name] = []
 
@@ -174,17 +194,18 @@ def get_jobs_grouped_by_location(): # Function name reverted to original
                 "url": url,
                 "body": body
             })
+            total_jobs_fetched += 1
+            print(f"    Added job: '{title}' under '{loc_name}'.")
     
-    # After fetching all jobs per location, we might want to also fetch jobs that have no location
-    # Or rely solely on the per-location filtering.
-    # For this request, we'll stick to filtering by provided locations.
-    
+    if total_jobs_fetched == 0:
+        print("WARN: No published jobs found across all fetched locations.")
+        
     final_result = {"locations": jobs_by_location}
     
     # Cache the result
     job_data_cache["data"] = final_result
     job_data_cache["timestamp"] = current_time
-    print("✅ Jobs fetched and cached by location.")
+    print(f"✅ Jobs fetched and cached by location. Total jobs processed: {total_jobs_fetched}")
 
     return final_result
 
