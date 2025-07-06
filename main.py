@@ -118,7 +118,8 @@ def get_jobs_grouped_by_location():
     for job in data.get("data", []):
         attrs = job.get("attributes", {})
         title = attrs.get("title")
-        url = job.get("links", {}).get("careersite-job-url") # Use careersite-job-url from 'links'
+        url = job.get("links", {}).get("careersite-job-url")
+        body = attrs.get("body", "") # <--- ADD THIS LINE to get the job description
 
         if not title or not url:
             continue
@@ -151,7 +152,8 @@ def get_jobs_grouped_by_location():
 
         jobs_by_location[display_location].append({
             "title": title,
-            "url": url
+            "url": url,
+            "body": body # <--- ADD THIS LINE to include the body in the response
         })
 
     return {"locations": jobs_by_location}
