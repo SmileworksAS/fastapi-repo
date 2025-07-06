@@ -6,7 +6,6 @@ import openai
 import os
 import json
 import requests
-import time
 
 # ✅ OpenAI setup for SDK < 1.0
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -91,21 +90,8 @@ async def stream_chat(req: ChatRequest):
 TEAMTAILOR_API_KEY = "vzQXfp3cJwmIuJ0X8iXjmY0hKOB3zqQQHBYAtRPZ"
 TEAMTAILOR_API_BASE = "https://api.teamtailor.com/v1"
 
-# --- Caching Mechanism ---
-job_data_cache = {"data": None, "timestamp": 0}
-CACHE_DURATION = 10 * 60 * 60  # 10 hours in seconds
-
 @app.get("/teamtailor/available-jobs")
 def get_jobs_grouped_by_location():
-    current_time = time.time()
-
-    # Check if cache is valid and relatively fresh
-    if job_data_cache["data"] and (current_time - job_data_cache["timestamp"] < CACHE_DURATION):
-        print("💡 Returning jobs from cache.")
-        return job_data_cache["data"]
-
-    print("🔄 Cache miss or expired. Fetching fresh data from Teamtailor...")
-
     headers = {
         "Authorization": f"Token token={TEAMTAILOR_API_KEY}",
         "Accept": "application/vnd.api+json",
@@ -113,103 +99,64 @@ def get_jobs_grouped_by_location():
         "Content-Type": "application/vnd.api+json"
     }
 
-    # Step 1: Fetch all available locations
-    print(f"Fetching locations from: {TEAMTAILOR_API_BASE}/locations?page[size]=100")
-    locations_response = requests.get(f"{TEAMTAILOR_API_BASE}/locations?page[size]=100", headers=headers)
-    
-    if locations_response.status_code != 200:
-        print(f"ERROR: Teamtailor API error fetching locations. Status: {locations_response.status_code}, Response: {locations_response.text}")
-        return JSONResponse(
-            status_code=locations_response.status_code,
-            content={"error": "Teamtailor API error fetching locations", "status": locations_response.status_code, "detail": locations_response.text}
-        )
-    
-    locations_data = locations_response.json()
-    print(f"Successfully fetched locations. Found {len(locations_data.get('data', []))} raw locations.")
+    # IMPORTANT: Add ?include=locations to get location data
+    res = requests.get(f"{TEAMTAILOR_API_BASE}/jobs?include=locations", headers=headers)
+    if res.status_code != 200:
+        print(f"Teamtailor API error: {res.status_code} - {res.text}")
+        return {"error": "Teamtailor API error", "status": res.status_code, "detail": res.text}
 
-    locations_map = {}
-    if "data" in locations_data:
-        for loc in locations_data["data"]:
-            if loc.get("type") == "locations":
-                loc_id = loc.get("id")
-                loc_name = loc.get("attributes", {}).get("city") or loc.get("attributes", {}).get("name")
-                if loc_id and loc_name:
-                    locations_map[loc_id] = loc_name
-    
-    if not locations_map:
-        print("WARN: No locations with valid IDs and names found after processing Teamtailor locations response.")
-        # If no locations, there will be no jobs to fetch by location, so return early
-        final_result_empty = {"locations": {}}
-        job_data_cache["data"] = final_result_empty
-        job_data_cache["timestamp"] = current_time
-        return final_result_empty
-
-    print(f"Processed {len(locations_map)} unique locations: {locations_map}")
-    
+    data = res.json()
     jobs_by_location = {}
 
-    # Step 2: Fetch jobs for each location
-    total_jobs_fetched = 0
-    for loc_id, loc_name in locations_map.items():
-        jobs_url = f"{TEAMTAILOR_API_BASE}/jobs?filter%5Blocations%5D={loc_id}&include=department&page[size]=100"
-        print(f"Fetching jobs for location '{loc_name}' (ID: {loc_id}) from: {jobs_url}")
-        jobs_response = requests.get(jobs_url, headers=headers)
-        
-        if jobs_response.status_code != 200:
-            print(f"ERROR: Teamtailor API error fetching jobs for '{loc_name}' ({loc_id}). Status: {jobs_response.status_code}, Response: {jobs_response.text}")
-            # Continue to next location even if one fails
+    # Create a dictionary for quick lookup of included resources (like locations)
+    included_resources = {}
+    if "included" in data:
+        for item in data["included"]:
+            if item.get("type") == "locations": # Make sure to handle 'locations' (plural) as per your JSON
+                included_resources[item["id"]] = item["attributes"]
+
+    for job in data.get("data", []):
+        attrs = job.get("attributes", {})
+        title = attrs.get("title")
+        url = job.get("links", {}).get("careersite-job-url") # Use careersite-job-url from 'links'
+
+        if not title or not url:
             continue
 
-        jobs_data = jobs_response.json()
-        raw_jobs_count = len(jobs_data.get("data", []))
-        print(f"  Found {raw_jobs_count} raw jobs for '{loc_name}'.")
+        # Get location relationship data
+        # Check 'relationships.locations.data' for multiple locations, or 'relationships.location.data' for single
+        job_locations = job.get("relationships", {}).get("locations", {}).get("data", [])
+        if not job_locations: # Fallback to single 'location' if 'locations' is empty or not present
+             single_location_data = job.get("relationships", {}).get("location", {}).get("data")
+             if single_location_data:
+                 job_locations = [single_location_data]
 
-        if raw_jobs_count == 0:
-            continue # No jobs for this location, move to the next
+        display_location = "Uten lokasjon"
 
-        # Prepare included departments for lookup within this jobs batch
-        included_departments = {}
-        if "included" in jobs_data:
-            for item in jobs_data["included"]:
-                if item.get("type") == "departments":
-                    included_departments[item["id"]] = item["attributes"]
+        if job_locations:
+            # For simplicity, let's take the first location if multiple are present
+            # You might want to combine them or handle them differently
+            first_location_id = job_locations[0]["id"]
+            location_info = included_resources.get(first_location_id)
+            if location_info:
+                display_location = location_info.get("city", location_info.get("name", "Uten lokasjon"))
+            else:
+                print(f"Warning: Location ID {first_location_id} not found in included resources.")
+        else:
+            print(f"Job '{title}' has no associated location relationship.")
 
-        for job in jobs_data.get("data", []):
-            attrs = job.get("attributes", {})
-            title = attrs.get("title")
-            body = attrs.get("body", "")
-            url = job.get("links", {}).get("careersite-job-url")
-            human_status = attrs.get("human-status")
 
-            # Only process jobs that are published and have a title/url
-            if not title or not url or human_status != "published":
-                print(f"    Skipping job '{title}' (ID: {job.get('id')}) due to missing title/URL or status '{human_status}'.")
-                continue
+        if display_location not in jobs_by_location:
+            jobs_by_location[display_location] = []
 
-            if loc_name not in jobs_by_location:
-                jobs_by_location[loc_name] = []
+        jobs_by_location[display_location].append({
+            "title": title,
+            "url": url
+        })
 
-            jobs_by_location[loc_name].append({
-                "title": title,
-                "url": url,
-                "body": body
-            })
-            total_jobs_fetched += 1
-            print(f"    Added job: '{title}' under '{loc_name}'.")
-    
-    if total_jobs_fetched == 0:
-        print("WARN: No published jobs found across all fetched locations.")
-        
-    final_result = {"locations": jobs_by_location}
-    
-    # Cache the result
-    job_data_cache["data"] = final_result
-    job_data_cache["timestamp"] = current_time
-    print(f"✅ Jobs fetched and cached by location. Total jobs processed: {total_jobs_fetched}")
+    return {"locations": jobs_by_location}
 
-    return final_result
-
-# ✅ Teamtailor: CV Application Endpoint (unchanged)
+# ✅ Teamtailor: CV Application Endpoint
 @app.post("/teamtailor/cv-application/")
 async def submit_cv_application(
     name: str = Form(...),
