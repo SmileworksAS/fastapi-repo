@@ -13,21 +13,25 @@ CORS_ORIGINS = [
     "https://www.branding2025.orbdent.com"
 ]
 
+# --- UPDATED PATHS FOR PROMPT FILES ---
+PROMPT_DIR = "chat-prompts" # Define the directory for prompts
+
 # Load system prompt
 try:
-    with open("prompt.json", "r", encoding="utf-8") as f:
+    with open(os.path.join(PROMPT_DIR, "prompt.json"), "r", encoding="utf-8") as f:
         SYSTEM_PROMPT = json.load(f).get("system", "")
 except FileNotFoundError:
-    SYSTEM_PROMPT = "Error: prompt.json not found."
-    print("Warning: prompt.json not found. Check file path.")
+    SYSTEM_PROMPT = "Error: prompt.json not found. Check file path."
+    print(f"Warning: {PROMPT_DIR}/prompt.json not found. Check file path.")
 
 # Load Orbdent knowledge
 try:
-    with open("orbdent_knowledge.json", "r", encoding="utf-8") as f:
+    with open(os.path.join(PROMPT_DIR, "orbdent_knowledge.json"), "r", encoding="utf-8") as f:
         ORBDENT_KNOWLEDGE = json.load(f)
 except FileNotFoundError:
     ORBDENT_KNOWLEDGE = {}
-    print("Warning: orbdent_knowledge.json not found. Check file path.")
+    print(f"Warning: {PROMPT_DIR}/orbdent_knowledge.json not found. Check file path.")
+# --- END UPDATED PATHS ---
 
 def format_knowledge(knowledge: dict) -> str:
     """Formats the Orbdent knowledge into a string for the AI prompt."""
