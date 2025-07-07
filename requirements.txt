@@ -1,6 +1,9 @@
 openai==0.28.1
-fastapi==0.111.0  # Example: Use a specific version for stability
-uvicorn[standard]==0.29.0 # Example: Use a specific version and include standard dependencies
-python-multipart==0.0.9 # Example: Use a specific version
-requests==2.32.3 # Example: Use a specific version
-google-api-python-client google-auth-httplib2 google-auth-oauthlib pytz # For time zone handling
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+python-multipart==0.0.9
+requests==2.32.3
+google-api-python-client  # This package should be on its own line
+google-auth-httplib2      # This package should be on its own line
+google-auth-oauthlib      # This package should be on its own line
+pytz                      # This package should be on its own line
