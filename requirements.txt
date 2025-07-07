@@ -1,5 +1,5 @@
 openai==0.28.1
-fastapi
-uvicorn
-python-multipart
-requests
+fastapi==0.111.0  # Example: Use a specific version for stability
+uvicorn[standard]==0.29.0 # Example: Use a specific version and include standard dependencies
+python-multipart==0.0.9 # Example: Use a specific version
+requests==2.32.3 # Example: Use a specific version
