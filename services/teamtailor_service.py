@@ -1,6 +1,7 @@
 # services/teamtailor_service.py
 import requests
 import time
+import json # Added json import for pretty printing job objects
 from config import TEAMTAILOR_API_KEY, TEAMTAILOR_API_BASE
 
 # Simple in-memory cache for the final aggregated job data
@@ -28,7 +29,8 @@ def fetch_and_group_jobs_by_location():
     }
 
     # Step 1: Fetch all available locations
-    print(f"Fetching locations from: {TEAMTAILOR_API_BASE}/locations?page[size]=100")
+    # Corrected page[size] to 30 for the /locations endpoint
+    print(f"Fetching locations from: {TEAMTAILOR_API_BASE}/locations?page[size]=30")
     locations_response = requests.get(f"{TEAMTAILOR_API_BASE}/locations?page[size]=30", headers=headers)
     
     if locations_response.status_code != 200:
@@ -61,6 +63,7 @@ def fetch_and_group_jobs_by_location():
     # Step 2: Fetch jobs for each location
     total_jobs_fetched_count = 0
     for loc_id, loc_name in locations_map.items():
+        # Corrected page[size] to 30 for the /jobs endpoint as well
         jobs_url = f"{TEAMTAILOR_API_BASE}/jobs?filter%5Blocations%5D={loc_id}&include=department&page[size]=30"
         print(f"Fetching jobs for location '{loc_name}' (ID: {loc_id}) from: {jobs_url}")
         jobs_response = requests.get(jobs_url, headers=headers)
@@ -84,8 +87,11 @@ def fetch_and_group_jobs_by_location():
                 if item.get("type") == "departments":
                     included_departments[item["id"]] = item["attributes"]
 
-            for job in jobs_data.get("data", []):
-            # --- ADD THIS PRINT STATEMENT ---
+        # --- IMPORTANT INDENTATION FIX AND LOGIC FIX START ---
+        # The job processing loop should iterate over jobs_data.get("data", [])
+        # regardless of whether "included" exists.
+        for job in jobs_data.get("data", []): # Correctly indented and always processes jobs
+            # --- ADD THIS PRINT STATEMENT FOR DEBUGGING THE JOB OBJECT ---
             print(f"--- Processing job object (ID check): {json.dumps(job, indent=2)}")
             # --- END ADDITION ---
 
@@ -110,8 +116,10 @@ def fetch_and_group_jobs_by_location():
                 "body": body
             })
             total_jobs_fetched_count += 1
-            print(f"    Added job: '{title}' (ID: {job.get('id')}) under '{loc_name}'.") # Also improved this print
-    
+            # Improved this print statement to always show the ID being processed
+            print(f"    Added job: '{title}' (ID: {job.get('id', 'N/A')}) under '{loc_name}'.")
+        # --- IMPORTANT INDENTATION FIX AND LOGIC FIX END ---
+            
     if total_jobs_fetched_count == 0:
         print("WARN: No published jobs found across all fetched locations.")
         
