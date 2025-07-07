@@ -1,5 +1,6 @@
 # routers/openai.py
-from fastapi import APIRouter, StreamingResponse
+from fastapi import APIRouter
+from fastapi.responses import StreamingResponse # <--- Changed this line
 from models.chat import ChatRequest
 from services.openai_service import get_openai_chat_stream
 
