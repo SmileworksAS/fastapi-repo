@@ -29,7 +29,7 @@ def fetch_and_group_jobs_by_location():
 
     # Step 1: Fetch all available locations
     print(f"Fetching locations from: {TEAMTAILOR_API_BASE}/locations?page[size]=100")
-    locations_response = requests.get(f"{TEAMTAILOR_API_BASE}/locations?page[size]=100", headers=headers)
+    locations_response = requests.get(f"{TEAMTAILOR_API_BASE}/locations?page[size]=30", headers=headers)
     
     if locations_response.status_code != 200:
         print(f"ERROR: Teamtailor API error fetching locations. Status: {locations_response.status_code}, Response: {locations_response.text}")
