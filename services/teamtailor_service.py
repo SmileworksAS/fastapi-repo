@@ -84,7 +84,7 @@ def fetch_and_group_jobs_by_location():
                 if item.get("type") == "departments":
                     included_departments[item["id"]] = item["attributes"]
 
-         for job in jobs_data.get("data", []):
+            for job in jobs_data.get("data", []):
             # --- ADD THIS PRINT STATEMENT ---
             print(f"--- Processing job object (ID check): {json.dumps(job, indent=2)}")
             # --- END ADDITION ---
