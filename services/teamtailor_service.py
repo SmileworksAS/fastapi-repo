@@ -100,6 +100,7 @@ def fetch_and_group_jobs_by_location():
                 jobs_by_location[loc_name] = []
 
             jobs_by_location[loc_name].append({
+                "id": job.get("id"), 
                 "title": title,
                 "url": url,
                 "body": body
