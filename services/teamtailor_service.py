@@ -84,7 +84,11 @@ def fetch_and_group_jobs_by_location():
                 if item.get("type") == "departments":
                     included_departments[item["id"]] = item["attributes"]
 
-        for job in jobs_data.get("data", []):
+         for job in jobs_data.get("data", []):
+            # --- ADD THIS PRINT STATEMENT ---
+            print(f"--- Processing job object (ID check): {json.dumps(job, indent=2)}")
+            # --- END ADDITION ---
+
             attrs = job.get("attributes", {})
             title = attrs.get("title")
             body = attrs.get("body", "")
@@ -100,13 +104,13 @@ def fetch_and_group_jobs_by_location():
                 jobs_by_location[loc_name] = []
 
             jobs_by_location[loc_name].append({
-                "id": job.get("id"), 
+                "id": job.get("id"), # This is the line that should be getting the ID
                 "title": title,
                 "url": url,
                 "body": body
             })
             total_jobs_fetched_count += 1
-            print(f"    Added job: '{title}' under '{loc_name}'.")
+            print(f"    Added job: '{title}' (ID: {job.get('id')}) under '{loc_name}'.") # Also improved this print
     
     if total_jobs_fetched_count == 0:
         print("WARN: No published jobs found across all fetched locations.")
