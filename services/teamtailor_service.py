@@ -61,7 +61,7 @@ def fetch_and_group_jobs_by_location():
     # Step 2: Fetch jobs for each location
     total_jobs_fetched_count = 0
     for loc_id, loc_name in locations_map.items():
-        jobs_url = f"{TEAMTAILOR_API_BASE}/jobs?filter%5Blocations%5D={loc_id}&include=department&page[size]=100"
+        jobs_url = f"{TEAMTAILOR_API_BASE}/jobs?filter%5Blocations%5D={loc_id}&include=department&page[size]=30"
         print(f"Fetching jobs for location '{loc_name}' (ID: {loc_id}) from: {jobs_url}")
         jobs_response = requests.get(jobs_url, headers=headers)
         
