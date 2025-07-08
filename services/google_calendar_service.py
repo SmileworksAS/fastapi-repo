@@ -41,7 +41,8 @@ def get_calendar_service():
             print(f"DEBUG: Private Key Length: {len(private_key_content)} characters")
             print(f"DEBUG: Private Key Newline Count: {private_key_content.count('\\n')}") # This line caused previous SyntaxError, now fixed.
         else:
-            print("DEBUG: Private Key field is missing or empty.")
+            newline_count = private_key_content.count('\n') # Calculate this value first
+            print(f"DEBUG: Private Key Newline Count: {newline_count}") # Then use the variable in the f-string
         # --- VERY DETAILED DEBUG LOGGING END ---
 
         creds = service_account.Credentials.from_service_account_info(
