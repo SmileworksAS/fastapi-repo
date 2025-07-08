@@ -39,17 +39,15 @@ def get_calendar_service():
             print(f"DEBUG: Private Key (first 20 chars): {private_key_content[:20]}...")
             print(f"DEBUG: Private Key (last 20 chars): ...{private_key_content[-20:]}")
             print(f"DEBUG: Private Key Length: {len(private_key_content)} characters")
-            # --- CORRECTED LINE 46 BELOW (f-string fix) ---
+            # Corrected f-string usage for backslash
             newline_count_val = private_key_content.count('\n') 
             print(f"DEBUG: Private Key Newline Count: {newline_count_val}")
-            # --- END CORRECTED LINE ---
         else:
             print("DEBUG: Private Key field is missing or empty.")
         # --- VERY DETAILED DEBUG LOGGING END ---
 
-        creds = service_account.Credentials.from_service_account_file(
-            # Using from_service_account_info because we load from environment variable
-            json.loads(os.getenv('GOOGLE_SERVICE_ACCOUNT_KEY_JSON')), 
+        creds = service_account.Credentials.from_service_account_info(
+            service_account_data,
             scopes=['https://www.googleapis.com/auth/calendar.readonly']
         )
         return build('calendar', 'v3', credentials=creds)
@@ -98,9 +96,18 @@ def get_available_timeslots(): # Function name remains the same for frontend com
         
         events = events_result.get('items', [])
         
+        # --- NEW DEBUG PRINT: Show raw events received from Google API ---
+        if events:
+            print(f"DEBUG: Google API returned {len(events)} raw events. Showing first 3 for inspection:")
+            for i, event_item in enumerate(events[:3]):
+                print(f"DEBUG: Raw Event {i+1}: Summary='{event_item.get('summary')}', Start='{event_item.get('start')}', DateTime_Key_Exists={ 'dateTime' in event_item.get('start', {}) }")
+        else:
+            print("DEBUG: Google API returned no events for the query (q=summary filter applied).")
+        # --- END NEW DEBUG PRINT ---
+
         available_events = {}
 
-        if not events:
+        if not events: # This check is now based on what Google returned, which is good.
             print(f"WARN: No events found with summary '{TARGET_EVENT_SUMMARY_FILTER}' in the specified date range.")
         else:
             for event in events:
