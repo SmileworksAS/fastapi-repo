@@ -106,8 +106,8 @@ BUSINESS_HOURS = {
 TARGET_EVENT_SUMMARY_FILTER = "Virtuelt møte"
 
 # --- Caching Durations ---
-# Cache duration for Teamtailor job data (10 hours).
-TEAMTAILOR_CACHE_DURATION = 10 * 60 * 60
+# Cache duration for Teamtailor job data (15 minutes).
+TEAMTAILOR_CACHE_DURATION = 15 * 60
 
 # Cache duration for Google Calendar data (15 minutes).
 CALENDAR_CACHE_DURATION = 15 * 60
