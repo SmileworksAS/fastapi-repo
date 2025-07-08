@@ -42,7 +42,7 @@ def get_calendar_service():
             print(f"DEBUG: Private Key (last 20 chars): ...{private_key_content[-20:]}")
             print(f"DEBUG: Private Key Length: {len(private_key_content)} characters")
             # --- CORRECTED LINE 45 BELOW ---
-            print(f"DEBUG: Private Key Newline Count: {private_key_content.count('\n')}") # FIXED: '\n' instead of '\\n'
+            print(f"DEBUG: Private Key Newline Count: {private_key_content.count('\\n')}") # FIXED: '\n' instead of '\\n'
             # --- END CORRECTED LINE 45 ---
         else:
             print("DEBUG: Private Key field is missing or empty.")
