@@ -103,7 +103,7 @@ BUSINESS_HOURS = {
 
 # Target event summary (title) to filter by when fetching events from Google Calendar.
 # Only events with this exact summary will be fetched and displayed.
-TARGET_EVENT_SUMMARY_FILTER = "Visuelt møte"
+TARGET_EVENT_SUMMARY_FILTER = "Virtuelt møte"
 
 # --- Caching Durations ---
 # Cache duration for Teamtailor job data (10 hours).
