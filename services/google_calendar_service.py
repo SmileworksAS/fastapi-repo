@@ -2,7 +2,7 @@
 import datetime
 import pytz
 import os
-import json # Ensure json is imported
+import json
 import time
 
 from google.oauth2 import service_account
@@ -11,11 +11,11 @@ from googleapiclient.errors import HttpError
 
 from config import (
     GOOGLE_CALENDAR_ID, CALENDAR_TIMEZONE,
-    MIN_SLOT_DURATION_MINUTES, LOOK_AHEAD_DAYS, BUSINESS_HOURS,
-    CALENDAR_CACHE_DURATION, TARGET_EVENT_SUMMARY_FILTER
+    MIN_SLOT_DURATION_MINUTES, LOOK_AHEAD_DAYS, BUSINESS_HOURS, # Keep for potential future use or context
+    CALENDAR_CACHE_DURATION, TARGET_EVENT_SUMMARY_FILTER # NEW: Import the event filter
 )
 
-# Cache for available timeslots
+# Cache for available timeslots (now, specific events)
 calendar_cache = {"data": None, "timestamp": 0}
 
 # Initialize Google Calendar API service
@@ -26,7 +26,6 @@ def get_calendar_service():
             print("ERROR: GOOGLE_SERVICE_ACCOUNT_KEY_JSON environment variable not found. Set it via 'flyctl secrets set'.")
             return None
 
-        # Parse the JSON string from the env var
         service_account_data = json.loads(service_account_info_str)
 
         # --- VERY DETAILED DEBUG LOGGING START ---
@@ -35,17 +34,15 @@ def get_calendar_service():
         print(f"DEBUG: Client Email: {service_account_data.get('client_email', 'N/A')}")
         print(f"DEBUG: Private Key ID: {service_account_data.get('private_key_id', 'N/A')}")
         
-        # Check if private_key exists and is not empty
         private_key_content = service_account_data.get('private_key')
         if private_key_content:
             print(f"DEBUG: Private Key (first 20 chars): {private_key_content[:20]}...")
             print(f"DEBUG: Private Key (last 20 chars): ...{private_key_content[-20:]}")
             print(f"DEBUG: Private Key Length: {len(private_key_content)} characters")
-            # --- ABSOLUTELY CORRECTED LINE BELOW (original line 46) ---
-            # Calculate newline count outside the f-string's curly braces
+            # --- CORRECTED LINE 46 BELOW (f-string fix) ---
             newline_count_val = private_key_content.count('\n') 
             print(f"DEBUG: Private Key Newline Count: {newline_count_val}")
-            # --- END ABSOLUTELY CORRECTED LINE ---
+            # --- END CORRECTED LINE ---
         else:
             print("DEBUG: Private Key field is missing or empty.")
         # --- VERY DETAILED DEBUG LOGGING END ---
@@ -57,14 +54,13 @@ def get_calendar_service():
         return build('calendar', 'v3', credentials=creds)
     except json.JSONDecodeError as e:
         print(f"ERROR: Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY_JSON. Invalid JSON format: {e}")
-        # Print first 500 characters of the raw secret string for debugging, not the whole thing
-        print(f"Raw secret string (first 500 chars): {service_account_info_str[:500]}...") 
+        print(f"Raw secret string (first 500 chars): {service_account_info_str[:500]}...")
         return None
     except Exception as e:
         print(f"ERROR: Failed to initialize Google Calendar service in get_calendar_service: {e}")
         return None
 
-def get_available_timeslots():
+def get_available_timeslots(): # Function name remains the same for frontend compatibility
     """
     Fetches and returns specific events (e.g., "Visuelt møte") from Google Calendar.
     """
@@ -88,6 +84,7 @@ def get_available_timeslots():
         time_min = now.isoformat()
         time_max = (now + datetime.timedelta(days=LOOK_AHEAD_DAYS)).isoformat()
 
+        # Fetch events from the calendar
         events_result = service.events().list(
             calendarId=GOOGLE_CALENDAR_ID,
             timeMin=time_min,
@@ -110,23 +107,24 @@ def get_available_timeslots():
                 end = event['end'].get('dateTime', event['end'].get('date'))
                 summary = event.get('summary', 'No Title')
 
-                # Ensure it's a datetime event, not an all-day event, and has a summary
-                # Also, ensure the event is in the future relative to 'now'
-                if ('dateTime' in event['start'] and summary == TARGET_EVENT_SUMMARY_FILTER 
-                    and datetime.datetime.fromisoformat(start).astimezone(timezone) > now):
+                # Ensure it's a datetime event, not an all-day event
+                if 'dateTime' in event['start'] and summary == TARGET_EVENT_SUMMARY_FILTER:
                     try:
                         event_start_dt = datetime.datetime.fromisoformat(start).astimezone(timezone)
                         event_end_dt = datetime.datetime.fromisoformat(end).astimezone(timezone)
 
-                        date_key = event_start_dt.strftime('%Y-%m-%d')
-                        if date_key not in available_events:
-                            available_events[date_key] = []
-                        
-                        available_events[date_key].append({
-                            'start': event_start_dt.strftime('%H:%M'),
-                            'end': event_end_dt.strftime('%H:%M'),
-                            'summary': summary # Include summary for debugging if needed
-                        })
+                        # --- FIX: Only include events from TODAY (00:00:00) or in the future ---
+                        today_start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+                        if event_start_dt >= today_start_of_day: # Changed condition
+                            date_key = event_start_dt.strftime('%Y-%m-%d')
+                            if date_key not in available_events:
+                                available_events[date_key] = []
+                            
+                            available_events[date_key].append({
+                                'start': event_start_dt.strftime('%H:%M'),
+                                'end': event_end_dt.strftime('%H:%M'),
+                                'summary': summary # Include summary for debugging if needed
+                            })
                     except ValueError as e:
                         print(f"WARN: Could not parse event timestamp for event '{summary}': {start} or {end} - {e}")
 
