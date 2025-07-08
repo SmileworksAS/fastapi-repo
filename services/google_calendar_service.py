@@ -11,8 +11,8 @@ from googleapiclient.errors import HttpError
 
 from config import (
     GOOGLE_CALENDAR_ID, CALENDAR_TIMEZONE,
-    MIN_SLOT_DURATION_MINUTES, LOOK_AHEAD_DAYS, BUSINESS_HOURS, # Keep for potential future use or context
-    CALENDAR_CACHE_DURATION, TARGET_EVENT_SUMMARY_FILTER # NEW: Import the event filter
+    MIN_SLOT_DURATION_MINUTES, LOOK_AHEAD_DAYS, BUSINESS_HOURS,
+    CALENDAR_CACHE_DURATION, TARGET_EVENT_SUMMARY_FILTER
 )
 
 # Cache for available timeslots (now, specific events)
@@ -47,14 +47,15 @@ def get_calendar_service():
             print("DEBUG: Private Key field is missing or empty.")
         # --- VERY DETAILED DEBUG LOGGING END ---
 
-        creds = service_account.Credentials.from_service_account_info(
-            service_account_data,
+        creds = service_account.Credentials.from_service_account_file(
+            # Using from_service_account_info because we load from environment variable
+            json.loads(os.getenv('GOOGLE_SERVICE_ACCOUNT_KEY_JSON')), 
             scopes=['https://www.googleapis.com/auth/calendar.readonly']
         )
         return build('calendar', 'v3', credentials=creds)
     except json.JSONDecodeError as e:
         print(f"ERROR: Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY_JSON. Invalid JSON format: {e}")
-        print(f"Raw secret string (first 500 chars): {service_account_info_str[:500]}...")
+        print(f"Raw secret string (first 500 chars): {service_account_info_str[:500]}...") 
         return None
     except Exception as e:
         print(f"ERROR: Failed to initialize Google Calendar service in get_calendar_service: {e}")
@@ -113,18 +114,19 @@ def get_available_timeslots(): # Function name remains the same for frontend com
                         event_start_dt = datetime.datetime.fromisoformat(start).astimezone(timezone)
                         event_end_dt = datetime.datetime.fromisoformat(end).astimezone(timezone)
 
-                        # --- FIX: Only include events from TODAY (00:00:00) or in the future ---
-                        today_start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
-                        if event_start_dt >= today_start_of_day: # Changed condition
-                            date_key = event_start_dt.strftime('%Y-%m-%d')
-                            if date_key not in available_events:
-                                available_events[date_key] = []
-                            
-                            available_events[date_key].append({
-                                'start': event_start_dt.strftime('%H:%M'),
-                                'end': event_end_dt.strftime('%H:%M'),
-                                'summary': summary # Include summary for debugging if needed
-                            })
+                        # --- TEMPORARILY REMOVED TIME FILTER FOR DEBUGGING ---
+                        # The original filter was: event_start_dt >= today_start_of_day
+                        # This part is removed to see if ANY matching events are returned by Google API.
+                        
+                        date_key = event_start_dt.strftime('%Y-%m-%d')
+                        if date_key not in available_events:
+                            available_events[date_key] = []
+                        
+                        available_events[date_key].append({
+                            'start': event_start_dt.strftime('%H:%M'),
+                            'end': event_end_dt.strftime('%H:%M'),
+                            'summary': summary # Include summary for debugging if needed
+                        })
                     except ValueError as e:
                         print(f"WARN: Could not parse event timestamp for event '{summary}': {start} or {end} - {e}")
 
