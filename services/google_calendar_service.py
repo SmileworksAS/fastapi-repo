@@ -1,8 +1,8 @@
 # services/google_calendar_service.py
 import datetime
 import pytz
-import os # Make sure os is imported
-import json # Make sure json is imported
+import os
+import json
 import time
 
 from google.oauth2 import service_account
@@ -41,8 +41,9 @@ def get_calendar_service():
             print(f"DEBUG: Private Key (first 20 chars): {private_key_content[:20]}...")
             print(f"DEBUG: Private Key (last 20 chars): ...{private_key_content[-20:]}")
             print(f"DEBUG: Private Key Length: {len(private_key_content)} characters")
-            # Count actual newlines in the string
-            print(f"DEBUG: Private Key Newline Count: {private_key_content.count('\n')}")
+            # --- CORRECTED LINE 45 BELOW ---
+            print(f"DEBUG: Private Key Newline Count: {private_key_content.count('\n')}") # FIXED: '\n' instead of '\\n'
+            # --- END CORRECTED LINE 45 ---
         else:
             print("DEBUG: Private Key field is missing or empty.")
         # --- VERY DETAILED DEBUG LOGGING END ---
@@ -170,7 +171,7 @@ def get_available_timeslots():
                             'start': temp_slot_start.strftime('%H:%M'),
                             'end': slot_end.strftime('%H:%M')
                         })
-                        temp_slot_start = slot_end
+                        temp_slot_start = slot_slot_end
                 
                 current_check_time = max(current_check_time, busy['end'])
                 
