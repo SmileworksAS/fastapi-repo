@@ -41,10 +41,11 @@ def get_calendar_service():
             print(f"DEBUG: Private Key (first 20 chars): {private_key_content[:20]}...")
             print(f"DEBUG: Private Key (last 20 chars): ...{private_key_content[-20:]}")
             print(f"DEBUG: Private Key Length: {len(private_key_content)} characters")
-            # --- ABSOLUTELY CORRECTED LINE 45 BELOW ---
-            # To avoid SyntaxError in f-string, put the problematic part (backslash literal) outside the f-string's expression braces.
-            print(f"DEBUG: Private Key Newline Count: {private_key_content.count('\\n')}")
-            # --- END ABSOLUTELY CORRECTED LINE 45 ---
+            # --- ABSOLUTELY CORRECTED LINE 46 BELOW ---
+            # Extract calculation outside f-string to avoid backslash parsing issues
+            newline_count = private_key_content.count('\n') # Correctly count actual newline chars
+            print(f"DEBUG: Private Key Newline Count: {newline_count}")
+            # --- END ABSOLUTELY CORRECTED LINE 46 ---
         else:
             print("DEBUG: Private Key field is missing or empty.")
         # --- VERY DETAILED DEBUG LOGGING END ---
