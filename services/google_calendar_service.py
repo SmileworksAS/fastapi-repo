@@ -41,9 +41,10 @@ def get_calendar_service():
             print(f"DEBUG: Private Key (first 20 chars): {private_key_content[:20]}...")
             print(f"DEBUG: Private Key (last 20 chars): ...{private_key_content[-20:]}")
             print(f"DEBUG: Private Key Length: {len(private_key_content)} characters")
-            # --- CORRECTED LINE 45 BELOW ---
-            print(f"DEBUG: Private Key Newline Count: {private_key_content.count('\\n')}") # FIXED: '\n' instead of '\\n'
-            # --- END CORRECTED LINE 45 ---
+            # --- ABSOLUTELY CORRECTED LINE 45 BELOW ---
+            # To avoid SyntaxError in f-string, put the problematic part (backslash literal) outside the f-string's expression braces.
+            print(f"DEBUG: Private Key Newline Count: {private_key_content.count('\\n')}")
+            # --- END ABSOLUTELY CORRECTED LINE 45 ---
         else:
             print("DEBUG: Private Key field is missing or empty.")
         # --- VERY DETAILED DEBUG LOGGING END ---
@@ -171,7 +172,7 @@ def get_available_timeslots():
                             'start': temp_slot_start.strftime('%H:%M'),
                             'end': slot_end.strftime('%H:%M')
                         })
-                        temp_slot_start = slot_slot_end
+                        temp_slot_start = slot_end
                 
                 current_check_time = max(current_check_time, busy['end'])
                 
