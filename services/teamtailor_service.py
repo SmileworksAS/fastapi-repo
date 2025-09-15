@@ -183,9 +183,6 @@ from fastapi import FastAPI
 
 app = FastAPI()
 
-job_data_cache = {"data": None, "timestamp": 0}
-CACHE_DURATION = 10 * 60 * 60  # 10 hours
-
 @app.post("/admin/clear-cache")
 def clear_cache():
     job_data_cache["data"] = None
