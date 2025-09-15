@@ -176,3 +176,18 @@ def submit_cv_application(name: str, email: str, phone: str = None, message: str
         "message": message,
         "cv_filename": cv_filename
     }
+
+
+
+from fastapi import FastAPI
+
+app = FastAPI()
+
+job_data_cache = {"data": None, "timestamp": 0}
+CACHE_DURATION = 10 * 60 * 60  # 10 hours
+
+@app.post("/admin/clear-cache")
+def clear_cache():
+    job_data_cache["data"] = None
+    job_data_cache["timestamp"] = 0
+    return {"status": "cache cleared"}
