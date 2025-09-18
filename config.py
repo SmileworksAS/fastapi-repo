@@ -17,8 +17,8 @@ TEAMTAILOR_API_BASE = "https://api.teamtailor.com/v1"
 CORS_ORIGINS = [
     "https://branding2025.orbdent.com",
     "https://www.branding2025.orbdent.com"
-    # Add any other domains your frontend will be deployed on,
-    # or "http://localhost:port" for local development.
+    "https://orbdent.com",
+    "https://www.orbdent.com"
 ]
 
 # --- Prompt Files and Knowledge Loading ---
