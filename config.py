@@ -16,7 +16,7 @@ TEAMTAILOR_API_BASE = "https://api.teamtailor.com/v1"
 # List of origins allowed to access your FastAPI application.
 CORS_ORIGINS = [
     "https://branding2025.orbdent.com",
-    "https://www.branding2025.orbdent.com"
+    "https://www.branding2025.orbdent.com",
     "https://orbdent.com",
     "https://www.orbdent.com"
 ]
