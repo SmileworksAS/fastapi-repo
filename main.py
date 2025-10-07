@@ -1,6 +1,7 @@
 # main.py
 from fastapi import FastAPI, Request, HTTPException
 import json, os
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from config import CORS_ORIGINS, ADMIN_API_TOKEN
 # Import the new google_calendar router
@@ -29,6 +30,24 @@ def read_root():
     return {"message": "Orbdent AI Assistant API is running!"}
 
 
+PROMPTS_DIR = "/chat-prompts"
+
+@app.get("/chat-prompts/{filename}")
+async def get_prompt(filename: str):
+    filepath = os.path.join(PROMPTS_DIR, filename)
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail="File not found")
+    with open(filepath, "r", encoding="utf-8") as f:
+        content = json.load(f)
+    return JSONResponse(content)
+
+@app.post("/chat-prompts/{filename}")
+async def update_prompt(filename: str, data: dict):
+    filepath = os.path.join(PROMPTS_DIR, filename)
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    return {"status": "success", "file": filename}
+
 
 API_TOKEN = ADMIN_API_TOKEN
 
@@ -42,3 +61,5 @@ async def update_prompt(request: Request):
     with open("prompt.json", "w") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     return {"status": "ok", "message": "Prompt updated successfully"}
+
+
