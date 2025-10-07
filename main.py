@@ -2,7 +2,7 @@
 from fastapi import FastAPI, Request, HTTPException
 import json, os
 from fastapi.middleware.cors import CORSMiddleware
-from config import CORS_ORIGINS
+from config import CORS_ORIGINS, ADMIN_API_TOKEN
 # Import the new google_calendar router
 from routers import openai, teamtailor, google_calendar
 
@@ -30,7 +30,7 @@ def read_root():
 
 
 
-API_TOKEN = os.getenv("ADMIN_API_TOKEN", "ep4NjKM6DbdxPGqD86Ay")
+API_TOKEN = ADMIN_API_TOKEN
 
 @app.post("/admin/update-prompt")
 async def update_prompt(request: Request):
