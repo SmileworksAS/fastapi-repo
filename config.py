@@ -18,7 +18,16 @@ CORS_ORIGINS = [
     "https://branding2025.orbdent.com",
     "https://www.branding2025.orbdent.com",
     "https://orbdent.com",
-    "https://www.orbdent.com"
+    "https://www.orbdent.com",
+    "https://develop.orbdent.com",
+    "https://oslotannlegesenter.no",
+    "https://develop.oslotannlegesenter.no",
+    "https://develop.orbdent.no",
+    "https://orbdent.no",
+    "https://torshovtannlege.no",
+    "https://develop.torshovtannlege.no",
+    "https://nydalentannlegesenter.no",
+    "https://develop.nydalentannlegesenter.no"
 ]
 
 # --- Prompt Files and Knowledge Loading ---
