@@ -12,6 +12,9 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 TEAMTAILOR_API_KEY = "vzQXfp3cJwmIuJ0X8iXjmY0hKOB3zqQQHBYAtRPZ" 
 TEAMTAILOR_API_BASE = "https://api.teamtailor.com/v1"
 
+# Integration with WP: Currently hardcoded
+ADMIN_API_TOKEN = "ep4NjKM6DbdxPGqD86Ay"
+
 # --- CORS Settings ---
 # List of origins allowed to access your FastAPI application.
 CORS_ORIGINS = [
