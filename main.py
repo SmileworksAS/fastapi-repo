@@ -1,5 +1,6 @@
 # main.py
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
+import json, os
 from fastapi.middleware.cors import CORSMiddleware
 from config import CORS_ORIGINS
 # Import the new google_calendar router
@@ -26,3 +27,18 @@ app.include_router(google_calendar.router, prefix="/google-calendar", tags=["Goo
 @app.get("/")
 def read_root():
     return {"message": "Orbdent AI Assistant API is running!"}
+
+
+
+API_TOKEN = os.getenv("ADMIN_API_TOKEN", "ep4NjKM6DbdxPGqD86Ay")
+
+@app.post("/admin/update-prompt")
+async def update_prompt(request: Request):
+    auth = request.headers.get("Authorization", "")
+    if auth != f"Bearer {API_TOKEN}":
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    data = await request.json()
+    with open("prompt.json", "w") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+    return {"status": "ok", "message": "Prompt updated successfully"}
