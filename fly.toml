@@ -27,5 +27,5 @@ primary_region = "arn"
     grace_period = "10s"
 
 [build]
-  dockerfile = "server/Dockerfile"
-  context = "server"
+  dockerfile = "Dockerfile"
+  context = "."
