@@ -30,12 +30,22 @@ def read_root():
 
 
 # === Path to prompt folder ===
+
+
 # Bruk dynamisk sti slik at det fungerer både lokalt og i Fly.io
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROMPTS_DIR = "/data/chat-prompts"
 
 if not os.path.exists(PROMPTS_DIR):
     os.makedirs(PROMPTS_DIR, exist_ok=True)
+
+# Sørg for at filene finnes
+for fname in ["prompt.json", "orbdent_knowledge.json"]:
+    fpath = os.path.join(PROMPTS_DIR, fname)
+    if not os.path.exists(fpath):
+        with open(fpath, "w", encoding="utf-8") as f:
+            json.dump({"system": "New prompt file"}, f, indent=2)
+
 
 
 # === Helper: auth check ===
