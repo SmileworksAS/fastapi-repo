@@ -32,7 +32,7 @@ def read_root():
 # === Path to prompt folder ===
 # Bruk dynamisk sti slik at det fungerer både lokalt og i Fly.io
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PROMPTS_DIR = os.path.join(BASE_DIR, "chat-prompts")
+PROMPTS_DIR = "/data/chat-prompts"
 
 if not os.path.exists(PROMPTS_DIR):
     os.makedirs(PROMPTS_DIR, exist_ok=True)
