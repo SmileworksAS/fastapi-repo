@@ -48,18 +48,17 @@ def check_auth(request: Request):
 
 # === GET: hent prompt-fil ===
 @app.get("/chat-prompts/{filename}")
-async def get_prompt(filename: str, request: Request):
-    check_auth(request)
+async def get_prompt(filename: str):
     filepath = os.path.join(PROMPTS_DIR, filename)
     if not os.path.exists(filepath):
         raise HTTPException(status_code=404, detail="File not found")
+    with open(filepath, "r", encoding="utf-8") as f:
+        content = json.load(f)
+    response = JSONResponse(content)
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    return response
 
-    try:
-        with open(filepath, "r", encoding="utf-8") as f:
-            content = json.load(f)
-        return JSONResponse(content)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
 
 
 # === POST: oppdater prompt-fil ===
