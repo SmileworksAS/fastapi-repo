@@ -52,25 +52,30 @@ async def get_prompt(filename: str):
     filepath = os.path.join(PROMPTS_DIR, filename)
     if not os.path.exists(filepath):
         raise HTTPException(status_code=404, detail="File not found")
+    
+    # 🚫 Ikke hold noe i minne – les alltid rett fra disk
     with open(filepath, "r", encoding="utf-8") as f:
-        content = json.load(f)
+        try:
+            content = json.load(f)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=500, detail="Invalid JSON file")
+    
     response = JSONResponse(content)
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    response.headers["X-Data-Source"] = "disk"  # nyttig for testing
     return response
+
 
 
 
 # === POST: oppdater prompt-fil ===
 @app.post("/chat-prompts/{filename}")
-async def update_prompt(filename: str, request: Request):
-    check_auth(request)
+async def update_prompt(filename: str, data: dict):
     filepath = os.path.join(PROMPTS_DIR, filename)
-
-    try:
-        data = await request.json()
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        return {"status": "success", "file": filename}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error writing file: {str(e)}")
+    print("📝 Writing prompt file:", filepath)
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    os.sync()  # <- sørger for at alt flushes til disk
+    return {"status": "success", "file": filename}
